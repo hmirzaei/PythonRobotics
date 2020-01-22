@@ -17,26 +17,27 @@ import matplotlib.pyplot as plt
 import copy
 import math
 import cubic_spline_planner
+from copy import deepcopy
 
 SIM_LOOP = 500
 
 # Parameter
 MAX_SPEED = 50.0 / 3.6  # maximum speed [m/s]
-MAX_ACCEL = 2.0  # maximum acceleration [m/ss]
+MAX_ACCEL = 10.0  # maximum acceleration [m/ss]
 MAX_CURVATURE = 1.0  # maximum curvature [1/m]
 MAX_ROAD_WIDTH = 7.0  # maximum road width [m]
 D_ROAD_W = 1.0  # road width sampling length [m]
 DT = 0.2  # time tick [s]
 MAXT = 5.0  # max prediction time [m]
-MINT = 4.0  # min prediction time [m]
+MINT = 1.0  # min prediction time [m]
 TARGET_SPEED = 30.0 / 3.6  # target speed [m/s]
 D_T_S = 5.0 / 3.6  # target speed sampling length [m/s]
 N_S_SAMPLE = 1  # sampling number of target speed
 ROBOT_RADIUS = 2.0  # robot radius [m]
 
 # cost weights
-KJ = 0.1
-KT = 0.1
+KJ = 0.01
+KT = 1
 KD = 1.0
 KLAT = 1.0
 KLON = 1.0
@@ -47,16 +48,15 @@ show_animation = True
 class quintic_polynomial:
 
     def __init__(self, xs, vxs, axs, xe, vxe, axe, T):
-
         # calc coefficient of quintic polynomial
         self.a0 = xs
         self.a1 = vxs
         self.a2 = axs / 2.0
 
-        A = np.array([[T**3, T**4, T**5],
+        A = np.array([[T ** 3, T ** 4, T ** 5],
                       [3 * T ** 2, 4 * T ** 3, 5 * T ** 4],
                       [6 * T, 12 * T ** 2, 20 * T ** 3]])
-        b = np.array([xe - self.a0 - self.a1 * T - self.a2 * T**2,
+        b = np.array([xe - self.a0 - self.a1 * T - self.a2 * T ** 2,
                       vxe - self.a1 - 2 * self.a2 * T,
                       axe - 2 * self.a2])
         x = np.linalg.solve(A, b)
@@ -66,24 +66,24 @@ class quintic_polynomial:
         self.a5 = x[2]
 
     def calc_point(self, t):
-        xt = self.a0 + self.a1 * t + self.a2 * t**2 + \
-            self.a3 * t**3 + self.a4 * t**4 + self.a5 * t**5
+        xt = self.a0 + self.a1 * t + self.a2 * t ** 2 + \
+             self.a3 * t ** 3 + self.a4 * t ** 4 + self.a5 * t ** 5
 
         return xt
 
     def calc_first_derivative(self, t):
         xt = self.a1 + 2 * self.a2 * t + \
-            3 * self.a3 * t**2 + 4 * self.a4 * t**3 + 5 * self.a5 * t**4
+             3 * self.a3 * t ** 2 + 4 * self.a4 * t ** 3 + 5 * self.a5 * t ** 4
 
         return xt
 
     def calc_second_derivative(self, t):
-        xt = 2 * self.a2 + 6 * self.a3 * t + 12 * self.a4 * t**2 + 20 * self.a5 * t**3
+        xt = 2 * self.a2 + 6 * self.a3 * t + 12 * self.a4 * t ** 2 + 20 * self.a5 * t ** 3
 
         return xt
 
     def calc_third_derivative(self, t):
-        xt = 6 * self.a3 + 24 * self.a4 * t + 60 * self.a5 * t**2
+        xt = 6 * self.a3 + 24 * self.a4 * t + 60 * self.a5 * t ** 2
 
         return xt
 
@@ -91,7 +91,6 @@ class quintic_polynomial:
 class quartic_polynomial:
 
     def __init__(self, xs, vxs, axs, vxe, axe, T):
-
         # calc coefficient of quartic polynomial
 
         self.a0 = xs
@@ -108,19 +107,19 @@ class quartic_polynomial:
         self.a4 = x[1]
 
     def calc_point(self, t):
-        xt = self.a0 + self.a1 * t + self.a2 * t**2 + \
-            self.a3 * t**3 + self.a4 * t**4
+        xt = self.a0 + self.a1 * t + self.a2 * t ** 2 + \
+             self.a3 * t ** 3 + self.a4 * t ** 4
 
         return xt
 
     def calc_first_derivative(self, t):
         xt = self.a1 + 2 * self.a2 * t + \
-            3 * self.a3 * t**2 + 4 * self.a4 * t**3
+             3 * self.a3 * t ** 2 + 4 * self.a4 * t ** 3
 
         return xt
 
     def calc_second_derivative(self, t):
-        xt = 2 * self.a2 + 6 * self.a3 * t + 12 * self.a4 * t**2
+        xt = 2 * self.a2 + 6 * self.a3 * t + 12 * self.a4 * t ** 2
 
         return xt
 
@@ -154,26 +153,25 @@ class Frenet_path:
 
 
 def calc_frenet_paths(c_speed, c_d, c_d_d, c_d_dd, s0):
-
     frenet_paths = []
 
     # generate path to each offset goal
-    for di in np.arange(-MAX_ROAD_WIDTH, MAX_ROAD_WIDTH, D_ROAD_W):
+    for di in np.linspace(-MAX_ROAD_WIDTH, MAX_ROAD_WIDTH, round(2 * MAX_ROAD_WIDTH / D_ROAD_W + 1)):
 
         # Lateral motion planning
-        for Ti in np.arange(MINT, MAXT, DT):
+        for Ti in np.linspace(MINT, MAXT, round((MAXT - MINT)/ DT + 1)):
             fp = Frenet_path()
 
             lat_qp = quintic_polynomial(c_d, c_d_d, c_d_dd, di, 0.0, 0.0, Ti)
 
-            fp.t = [t for t in np.arange(0.0, Ti, DT)]
+            fp.t = [t for t in np.linspace(0.0, Ti, round(Ti/DT)+1)]
             fp.d = [lat_qp.calc_point(t) for t in fp.t]
             fp.d_d = [lat_qp.calc_first_derivative(t) for t in fp.t]
             fp.d_dd = [lat_qp.calc_second_derivative(t) for t in fp.t]
             fp.d_ddd = [lat_qp.calc_third_derivative(t) for t in fp.t]
 
             # Longitudinal motion planning (Velocity keeping)
-            for tv in np.arange(TARGET_SPEED - D_T_S * N_S_SAMPLE, TARGET_SPEED + D_T_S * N_S_SAMPLE, D_T_S):
+            for tv in np.linspace(TARGET_SPEED - D_T_S * N_S_SAMPLE, TARGET_SPEED + D_T_S * N_S_SAMPLE, 2 * N_S_SAMPLE + 1):
                 tfp = copy.deepcopy(fp)
                 lon_qp = quartic_polynomial(s0, c_speed, 0.0, tv, 0.0, Ti)
 
@@ -186,9 +184,9 @@ def calc_frenet_paths(c_speed, c_d, c_d_d, c_d_dd, s0):
                 Js = sum(np.power(tfp.s_ddd, 2))  # square of jerk
 
                 # square of diff from target speed
-                ds = (TARGET_SPEED - tfp.s_d[-1])**2
+                ds = (TARGET_SPEED - tfp.s_d[-1]) ** 2
 
-                tfp.cd = KJ * Jp + KT * Ti + KD * tfp.d[-1]**2
+                tfp.cd = KJ * Jp + KT * Ti + KD * tfp.d[-1] ** 2
                 tfp.cv = KJ * Js + KT * Ti + KD * ds
                 tfp.cf = KLAT * tfp.cd + KLON * tfp.cv
 
@@ -198,7 +196,6 @@ def calc_frenet_paths(c_speed, c_d, c_d_d, c_d_dd, s0):
 
 
 def calc_global_paths(fplist, csp):
-
     for fp in fplist:
 
         # calc global positions
@@ -231,12 +228,11 @@ def calc_global_paths(fplist, csp):
 
 
 def check_collision(fp, ob):
-
     for i in range(len(ob[:, 0])):
-        d = [((ix - ob[i, 0])**2 + (iy - ob[i, 1])**2)
+        d = [((ix - ob[i, 0]) ** 2 + (iy - ob[i, 1]) ** 2)
              for (ix, iy) in zip(fp.x, fp.y)]
 
-        collision = any([di <= ROBOT_RADIUS**2 for di in d])
+        collision = any([di <= ROBOT_RADIUS ** 2 for di in d])
 
         if collision:
             return False
@@ -245,7 +241,6 @@ def check_collision(fp, ob):
 
 
 def check_paths(fplist, ob):
-
     okind = []
     for i, _ in enumerate(fplist):
         if any([v > MAX_SPEED for v in fplist[i].s_d]):  # Max speed check
@@ -263,20 +258,23 @@ def check_paths(fplist, ob):
 
 
 def frenet_optimal_planning(csp, s0, c_speed, c_d, c_d_d, c_d_dd, ob):
-
     fplist = calc_frenet_paths(c_speed, c_d, c_d_d, c_d_dd, s0)
     fplist = calc_global_paths(fplist, csp)
     fplist = check_paths(fplist, ob)
+    paths = deepcopy(fplist)[::10]
 
     # find minimum cost path
     mincost = float("inf")
+    maxcost = -float("inf")
     bestpath = None
     for fp in fplist:
+        if maxcost < fp.cf:
+            maxcost = fp.cf
         if mincost >= fp.cf:
             mincost = fp.cf
             bestpath = fp
 
-    return bestpath
+    return bestpath, paths, maxcost
 
 
 def generate_target_course(x, y):
@@ -317,10 +315,10 @@ def main():
     c_d_dd = 0.0  # current latral acceleration [m/s]
     s0 = 0.0  # current course position
 
-    area = 20.0  # animation area length [m]
+    area = 30.0  # animation area length [m]
 
     for i in range(SIM_LOOP):
-        path = frenet_optimal_planning(
+        path, paths, maxcost = frenet_optimal_planning(
             csp, s0, c_speed, c_d, c_d_d, c_d_dd, ob)
 
         s0 = path.s[1]
@@ -340,6 +338,8 @@ def main():
                     lambda event: [exit(0) if event.key == 'escape' else None])
             plt.plot(tx, ty)
             plt.plot(ob[:, 0], ob[:, 1], "xk")
+            for p in paths:
+                plt.plot(p.x[1:], p.y[1:], "-o", color=(0, 0, 0, (1 - p.cf / maxcost) / 10))
             plt.plot(path.x[1:], path.y[1:], "-or")
             plt.plot(path.x[1], path.y[1], "vc")
             plt.xlim(path.x[1] - area, path.x[1] + area)
@@ -347,6 +347,7 @@ def main():
             plt.title("v[km/h]:" + str(c_speed * 3.6)[0:4])
             plt.grid(True)
             plt.pause(0.0001)
+        print(path.s_d[1] * 3.6)
 
     print("Finish")
     if show_animation:  # pragma: no cover
@@ -356,4 +357,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    f_paths = calc_frenet_paths(1.06, 5.29, 8.15, 2.3, 3.81)
+    print(sorted([p.cf for p in f_paths]))
+
