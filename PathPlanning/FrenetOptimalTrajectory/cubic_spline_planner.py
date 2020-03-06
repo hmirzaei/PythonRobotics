@@ -165,6 +165,8 @@ class Spline2D:
         dy = self.sy.calcd(s)
         ddy = self.sy.calcdd(s)
         k = (ddy * dx - ddx * dy) / (dx ** 2 + dy ** 2)
+        if abs(k) > 2:
+            print(k)
         return k
 
     def calc_yaw(self, s):
