@@ -195,8 +195,8 @@ def calc_spline_course(x, y, ds=0.1):
 def main():  # pragma: no cover
     print("Spline 2D test")
     import matplotlib.pyplot as plt
-    x = [-2.5, 0.0, 2.5, 5.0, 7.5, 3.0, -1.0]
-    y = [0.7, -6, 5, 6.5, 0.0, 5.0, -2.0]
+    x = [0, 1, 2, 3, 4]
+    y = [0, 1, 1, 0, 1]
 
     sp = Spline2D(x, y)
     s = np.arange(0, sp.s[-1], 0.1)

@@ -357,6 +357,13 @@ def main():
 
 
 if __name__ == '__main__':
-    f_paths = calc_frenet_paths(1.06, 5.29, 8.15, 2.3, 3.81)
-    print(sorted([p.cf for p in f_paths]))
+    csp = cubic_spline_planner.Spline2D([-2.5, 0.0, 2.5, 5.0, 7.5, 3.0, -1.0], [0.7, -6, 5, 6.5, 0.0, 5.0, -2.0])
+    s0 = 0.26848551914947011
+    c_speed = 20
+    c_d = 0.46716782232556936
+    c_d_d = -0.95263020627114503
+    c_d_dd = -1.4289453094067175
+    bestpath, paths, maxcost = frenet_optimal_planning(csp, s0, c_speed, c_d, c_d_d, c_d_dd, np.array([[100.0, 100.0]]))
+    print(bestpath.x[4])
+    print(bestpath.y[5])
 
