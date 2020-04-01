@@ -48,9 +48,9 @@ class Spline:
         """
 
         if t < self.x[0]:
-            return None
+            t = x[0]+ 0.01
         elif t > self.x[-1]:
-            return None
+            t = self.x[-1] - 0.01
 
         i = self.__search_index(t)
         dx = t - self.x[i]
@@ -67,9 +67,9 @@ class Spline:
         """
 
         if t < self.x[0]:
-            return None
+            t = x[0]+ 0.01
         elif t > self.x[-1]:
-            return None
+            t = self.x[-1] - 0.01
 
         i = self.__search_index(t)
         dx = t - self.x[i]
@@ -82,9 +82,9 @@ class Spline:
         """
 
         if t < self.x[0]:
-            return None
+            t = x[0]+ 0.01
         elif t > self.x[-1]:
-            return None
+            t = self.x[-1] - 0.01
 
         i = self.__search_index(t)
         dx = t - self.x[i]
