@@ -90,6 +90,21 @@ class Spline:
         dx = t - self.x[i]
         result = 2.0 * self.c[i] + 6.0 * self.d[i] * dx
         return result
+    
+    def calcddd(self, t):
+        """
+        Calc third derivative
+        """
+
+        if t < self.x[0]:
+            t = x[0]+ 0.01
+        elif t > self.x[-1]:
+            t = self.x[-1] - 0.01
+
+        i = self.__search_index(t)
+        dx = t - self.x[i]
+        result = 6.0 * self.d[i]
+        return result
 
     def __search_index(self, x):
         """
@@ -164,10 +179,21 @@ class Spline2D:
         ddx = self.sx.calcdd(s)
         dy = self.sy.calcd(s)
         ddy = self.sy.calcdd(s)
-        k = (ddy * dx - ddx * dy) / (dx ** 2 + dy ** 2)
-        if abs(k) > 2:
-            print(k)
+        k = (ddy * dx - ddx * dy) / (dx ** 2 + dy ** 2) ** (3.0/2.0)
         return k
+
+    def calc_curvature_derivative(self, s):
+        """
+        calc curvature
+        """
+        dx = self.sx.calcd(s)
+        ddx = self.sx.calcdd(s)
+        dddx = self.sx.calcddd(s)
+        dy = self.sy.calcd(s)
+        ddy = self.sy.calcdd(s)
+        dddy = self.sy.calcddd(s)
+        dk = (-3.0*(dx*ddx + dy*ddy)*(dx*ddy - ddx*dy)*(dx**2 + dy**2)**1.5 + (dx*dddy - dddx*dy)*(dx**2 + dy**2)**2.5)*(dx**2 + dy**2)**(-4.0)
+        return dk
 
     def calc_yaw(self, s):
         """
