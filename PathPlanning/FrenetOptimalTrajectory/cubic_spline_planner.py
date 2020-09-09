@@ -46,18 +46,21 @@ class Spline:
         if t is outside of the input x, return None
 
         """
+        success = True
+        result = 0
 
         if t < self.x[0]:
-            t = x[0]+ 0.01
+            success = False
         elif t > self.x[-1]:
-            t = self.x[-1] - 0.01
+            success = False
 
-        i = self.__search_index(t)
-        dx = t - self.x[i]
-        result = self.a[i] + self.b[i] * dx + \
-            self.c[i] * dx ** 2.0 + self.d[i] * dx ** 3.0
+        if success:
+            i = self.__search_index(t)
+            dx = t - self.x[i]
+            result = self.a[i] + self.b[i] * dx + \
+                self.c[i] * dx ** 2.0 + self.d[i] * dx ** 3.0
 
-        return result
+        return success, result
 
     def calcd(self, t):
         """
@@ -166,10 +169,10 @@ class Spline2D:
         """
         calc position
         """
-        x = self.sx.calc(s)
-        y = self.sy.calc(s)
+        success1, x = self.sx.calc(s)
+        success2, y = self.sy.calc(s)
 
-        return x, y
+        return (success1 and success2), (x, y)
 
     def calc_curvature(self, s):
         """
