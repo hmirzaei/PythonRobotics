@@ -113,7 +113,7 @@ class Spline:
         """
         search data segment index
         """
-        return bisect.bisect(self.x, x) - 1
+        return min(bisect.bisect(self.x, x) - 1,  len(self.x) - 3)
 
     def __calc_A(self, h):
         """
